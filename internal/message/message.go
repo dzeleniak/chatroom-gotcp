@@ -11,12 +11,10 @@ type Message struct {
 }
 
 func New(username string, payload []byte) *Message {
-	
 	return &Message{
 		Sender: username,
 		Payload: payload,
 	}
-
 }
 
 func (m *Message) Log() string {
