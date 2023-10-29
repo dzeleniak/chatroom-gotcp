@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net"
 
-	"github.com/dzeleniak/chatroom-gotcp/internal/message"
+	"github.com/dzeleniak/chatroom-gotcp/pkg/message"
 	"github.com/gofrs/uuid"
 )
 

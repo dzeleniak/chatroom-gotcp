@@ -6,7 +6,7 @@ import (
 	"net"
 	"testing"
 
-	m "github.com/dzeleniak/chatroom-gotcp/internal/message"
+	m "github.com/dzeleniak/chatroom-gotcp/pkg/message"
 )
 
 func TestUser_ReadMessageSuccess(t *testing.T) {

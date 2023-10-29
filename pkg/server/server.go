@@ -7,7 +7,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/dzeleniak/chatroom-gotcp/internal/user"
+	"github.com/dzeleniak/chatroom-gotcp/pkg/user"
 	"github.com/gofrs/uuid"
 )
 
