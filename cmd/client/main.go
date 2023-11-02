@@ -3,16 +3,36 @@ package main
 import (
 	"fmt"
 	"log"
+	"net"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/dzeleniak/chatroom-gotcp/pkg/user"
+	"github.com/gofrs/uuid"
 )
 
 func main() {
-	p := tea.NewProgram(initialModel())
+
+	conn, err := net.Dial("tcp", "127.0.0.1:8080")
+	if err != nil {
+		panic(err)
+	}
+
+	userId, _ := uuid.NewV7();
+
+	u := &user.User{
+		Conn: conn,
+		Username: os.Args[1],
+		Id: userId,
+	}
+
+	u.Conn.Write([]byte(u.Username+string('\n')))
+
+	p := tea.NewProgram(initialModel(u))
 
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
@@ -27,9 +47,10 @@ type model struct {
 	textarea textarea.Model
 	senderStyle lipgloss.Style
 	err error
+	user user.User
 }
 
-func initialModel() model {
+func initialModel(user *user.User) model {
 	ta := textarea.New()
 	ta.Placeholder = "Send a message..."
 	ta.Focus();
@@ -53,10 +74,13 @@ func initialModel() model {
 		messages: []string{},
 		senderStyle: lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
 		err: nil,
+		user: *user,
 	}
 }
 
 func (m model) Init() tea.Cmd {
+	in := m.ReceieveMessages()
+	m.ListenForIncoming(in)
 	return textarea.Blink
 }
 
@@ -67,6 +91,7 @@ func (m model) View() string {
 		m.textarea.View(),
 	) + "\n\n"
 }
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		tiCmd tea.Cmd
@@ -83,6 +108,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Println(m.textarea.Value())
 				return m, tea.Quit
 			case tea.KeyEnter:
+				m.user.WriteMessage([]byte(
+					m.textarea.Value() + string('\n'),
+				))
+
 				m.messages = append(m.messages, m.senderStyle.Render("You: ") + m.textarea.Value())
 				m.viewport.SetContent(strings.Join(m.messages, "\n"))
 				m.textarea.Reset()
@@ -91,7 +120,38 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.err = msg
 		return m, nil
+	case incomingMsg:
+		m.messages = append(m.messages, string(msg))
+
 	}
 
 	return m, tea.Batch(tiCmd, vpCmd);
+}
+
+type incomingMsg string
+
+func (m *model) ListenForIncoming(inCh chan incomingMsg) {
+	go func() {
+		for {
+			res := <- inCh
+			m.Update(res)
+		}
+	}()
+}
+
+func (m *model) ReceieveMessages() chan incomingMsg {
+	incomingCh := make(chan incomingMsg)
+	go func () {
+		for {
+			buf, err := m.user.ReadMessage()
+
+			if err != nil {
+				panic(err);
+			}
+
+			incomingCh <- incomingMsg(buf)
+		}
+	}()
+	
+	return incomingCh;
 }
