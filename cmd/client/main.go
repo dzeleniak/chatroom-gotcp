@@ -79,8 +79,6 @@ func initialModel(user *user.User) model {
 }
 
 func (m model) Init() tea.Cmd {
-	in := m.ReceieveMessages()
-	m.ListenForIncoming(in)
 	return textarea.Blink
 }
 
@@ -99,59 +97,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 
 	m.textarea, tiCmd = m.textarea.Update(msg)
-	m.viewport, vpCmd = m.viewport.Update(msg)
+	m.viewport, vpCmd = m.viewport.Update(msg) 
 
-	switch msg := msg.(type) {
+	switch t := msg.(type) {
 	case tea.KeyMsg: 
-		switch msg.Type {
+		switch t.Type {
 			case tea.KeyCtrlC, tea.KeyEsc: 
 				fmt.Println(m.textarea.Value())
 				return m, tea.Quit
 			case tea.KeyEnter:
-				m.user.WriteMessage([]byte(
-					m.textarea.Value() + string('\n'),
-				))
-
+				m.user.Conn.Write([]byte(m.textarea.Value() + string('\n')))
 				m.messages = append(m.messages, m.senderStyle.Render("You: ") + m.textarea.Value())
 				m.viewport.SetContent(strings.Join(m.messages, "\n"))
 				m.textarea.Reset()
 				m.viewport.GotoBottom()
 		}
 	case errMsg:
-		m.err = msg
+		m.err = t
 		return m, nil
-	case incomingMsg:
-		m.messages = append(m.messages, string(msg))
-
-	}
+	}	
 
 	return m, tea.Batch(tiCmd, vpCmd);
-}
-
-type incomingMsg string
-
-func (m *model) ListenForIncoming(inCh chan incomingMsg) {
-	go func() {
-		for {
-			res := <- inCh
-			m.Update(res)
-		}
-	}()
-}
-
-func (m *model) ReceieveMessages() chan incomingMsg {
-	incomingCh := make(chan incomingMsg)
-	go func () {
-		for {
-			buf, err := m.user.ReadMessage()
-
-			if err != nil {
-				panic(err);
-			}
-
-			incomingCh <- incomingMsg(buf)
-		}
-	}()
-	
-	return incomingCh;
 }

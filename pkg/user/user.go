@@ -45,7 +45,7 @@ func (u *User) WriteMessage(buf []byte) (*message.Message, error) {
 		return &message.Message{}, err;
 	}
 
-	if _, err := u.Conn.Write([]byte(msg.Log())); err != nil {
+	if _, err := u.Conn.Write([]byte(msg.Log() + string('\n'))); err != nil {
 		return &message.Message{}, err;
 	}
 
